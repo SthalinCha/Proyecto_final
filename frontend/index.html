@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Análisis de Imágenes</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header con filtros y controles -->
+    <header class="main-header">
+        <div class="container">
+            <h1 class="app-title">
+                <span class="icon">🖼️</span>
+                Sistema de Análisis de Imágenes
+            </h1>
+            
+            <!-- Controles principales -->
+            <div class="controls-section">
+                <!-- Filtros -->
+                <div class="filters-container">
+                    <div class="filter-group">
+                        <label for="tag-filter">Filtrar por etiqueta:</label>
+                        <select id="tag-filter" class="filter-select">
+                            <option value="">Todas las etiquetas</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="method-filter">Método de análisis:</label>
+                        <select id="method-filter" class="filter-select">
+                            <option value="">Todos los métodos</option>
+                            <option value="moments">Momentos Regulares</option>
+                            <option value="hu">Momentos de Hu</option>
+                            <option value="zernike">Momentos de Zernike</option>
+                            <option value="sift">SIFT</option>
+                            <option value="hog">HOG</option>
+                            <option value="cnn">CNN</option>
+                        </select>
+                    </div>
+                    
+                    <button id="clear-filters" class="btn btn-secondary">
+                        Limpiar filtros
+                    </button>
+                </div>
+                
+                <!-- Botón para abrir modal de subida -->
+                <button id="upload-btn" class="btn btn-primary">
+                    <span class="icon">📤</span>
+                    Subir Imágenes
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sección principal -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Estadísticas -->
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 class="stat-number" id="total-images">0</h3>
+                        <p class="stat-label">Imágenes totales</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 class="stat-number" id="total-clusters">0</h3>
+                        <p class="stat-label">Clusters generados</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 class="stat-number" id="total-tags">0</h3>
+                        <p class="stat-label">Etiquetas únicas</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Galería de imágenes -->
+            <section class="gallery-section">
+                <div class="section-header">
+                    <h2>Galería de Imágenes</h2>
+                    <div class="view-controls">
+                        <button id="grid-view" class="view-btn active" title="Vista en cuadrícula">
+                            <span class="icon">⊞</span>
+                        </button>
+                        <button id="list-view" class="view-btn" title="Vista en lista">
+                            <span class="icon">≡</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Loading state -->
+                <div id="loading-state" class="loading-state" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Cargando imágenes...</p>
+                </div>
+                
+                <!-- Estado vacío -->
+                <div id="empty-state" class="empty-state" style="display: none;">
+                    <div class="empty-icon">📂</div>
+                    <h3>No hay imágenes</h3>
+                    <p>Sube algunas imágenes para comenzar el análisis</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('upload-btn').click()">
+                        Subir primera imagen
+                    </button>
+                </div>
+                
+                <!-- Grid de imágenes -->
+                <div id="images-grid" class="images-grid">
+                    <!-- Las imágenes se generarán dinámicamente aquí -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modal de subida de imágenes -->
+    <div id="upload-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Subir Imágenes</h2>
+                <button class="modal-close" id="upload-modal-close">&times;</button>
+            </div>
+            
+            <form id="upload-form" class="upload-form">
+                <!-- Configuración del análisis -->
+                <div class="form-section">
+                    <h3>Configuración del Análisis</h3>
+                    
+                    <div class="form-group">
+                        <label for="analysis-method">Método de análisis:</label>
+                        <select id="analysis-method" name="method" required>
+                            <option value="moments">Momentos Regulares</option>
+                            <option value="hu">Momentos de Hu</option>
+                            <option value="zernike">Momentos de Zernike</option>
+                            <option value="sift">SIFT</option>
+                            <option value="hog">HOG</option>
+                            <option value="cnn">CNN</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="num-clusters">Número de clases (k):</label>
+                        <input type="number" id="num-clusters" name="clusters" min="1" max="20" value="3">
+                        <small class="form-help">Número de clusters para el análisis automático</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="has-labels" name="hasLabels">
+                            Las imágenes tienen etiquetas predefinidas
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Área de subida de archivos -->
+                <div class="form-section">
+                    <h3>Seleccionar Imágenes</h3>
+                    
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-icon">📤</div>
+                        <p>Arrastra imágenes aquí o <button type="button" class="link-btn" id="browse-files">selecciona archivos</button></p>
+                        <small>Formatos soportados: JPG, PNG, GIF • Máximo 10MB por archivo</small>
+                        <input type="file" id="file-input" multiple accept="image/*" style="display: none;">
+                    </div>
+                    
+                    <!-- Área de etiquetas condicional -->
+                    <div id="labels-section" class="labels-section" style="display: none;">
+                        <h4>Asignar Etiquetas</h4>
+                        <div id="files-with-labels" class="files-with-labels">
+                            <!-- Se generará dinámicamente para cada archivo -->
+                        </div>
+                    </div>
+                    
+                    <!-- Vista previa de archivos -->
+                    <div id="files-preview" class="files-preview">
+                        <!-- Se generará dinámicamente -->
+                    </div>
+                </div>
+                
+                <!-- Botones de acción -->
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-upload">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submit-upload" disabled>
+                        <span class="icon">🚀</span>
+                        Procesar Imágenes
+                    </button>
+                </div>
+                
+                <!-- Barra de progreso -->
+                <div id="upload-progress" class="progress-section" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p id="progress-text">Procesando...</p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de comparación de imágenes -->
+    <div id="comparison-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2 id="comparison-title">Comparación de Imagen</h2>
+                <button class="modal-close" id="comparison-modal-close">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Tabs de navegación -->
+                <div class="tabs-container">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="original">Original</button>
+                        <button class="tab-btn" data-tab="grayscale">Escala de Grises</button>
+                        <button class="tab-btn" data-tab="binary">Binaria</button>
+                        <button class="tab-btn" data-tab="comparison">Comparación</button>
+                    </div>
+                </div>
+                
+                <!-- Contenido de las pestañas -->
+                <div class="tab-content">
+                    <!-- Pestaña Original -->
+                    <div class="tab-pane active" id="tab-original">
+                        <div class="image-container">
+                            <img id="original-image" alt="Imagen original">
+                        </div>
+                        <div class="image-info">
+                            <h4>Información de la Imagen</h4>
+                            <p><strong>Nombre:</strong> <span id="image-name"></span></p>
+                            <p><strong>Etiqueta:</strong> <span id="image-tag"></span></p>
+                            <p><strong>Método:</strong> <span id="image-method"></span></p>
+                            <p><strong>Cluster:</strong> <span id="image-cluster"></span></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Pestaña Escala de Grises -->
+                    <div class="tab-pane" id="tab-grayscale">
+                        <div class="image-container">
+                            <img id="grayscale-image" alt="Imagen en escala de grises">
+                        </div>
+                    </div>
+                    
+                    <!-- Pestaña Binaria -->
+                    <div class="tab-pane" id="tab-binary">
+                        <div class="image-container">
+                            <img id="binary-image" alt="Imagen binaria">
+                        </div>
+                    </div>
+                    
+                    <!-- Pestaña Comparación -->
+                    <div class="tab-pane" id="tab-comparison">
+                        <div class="comparison-grid">
+                            <div class="comparison-item">
+                                <h4>Original</h4>
+                                <img id="comp-original" alt="Original">
+                            </div>
+                            <div class="comparison-item">
+                                <h4>Escala de Grises</h4>
+                                <img id="comp-grayscale" alt="Escala de grises">
+                            </div>
+                            <div class="comparison-item">
+                                <h4>Binaria</h4>
+                                <img id="comp-binary" alt="Binaria">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts con defer para carga después del DOM -->
+    <script src="js/utils.js" defer></script>
+    <script src="js/upload.js" defer></script>
+    <script src="js/gallery.js" defer></script>
+    <script src="js/modal.js" defer></script>
+    <script src="js/app.js" defer></script>
+</body>
+</html>
