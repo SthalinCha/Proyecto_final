@@ -1,177 +1,171 @@
-// ===== CONSTANTES ===== 
-const API_BASE_URL = 'http://localhost:8000/api';
-const IMAGE_BASE_URL = 'http://localhost:8000';
+// Utilities
 
-// ===== UTILIDADES GENERALES =====
-const utils = {
-    // Formatear tamaño de archivo
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    },
+// API base URL
+const API_URL = '';
 
-    // Validar tipo de archivo
-    validateFileType(file) {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        return allowedTypes.includes(file.type);
-    },
+// Mostrar toast notification
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = {
+        success: '✓',
+        error: '✗',
+        info: 'ℹ'
+    };
+    
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close">&times;</button>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Cerrar al hacer clic
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        removeToast(toast);
+    });
+    
+    // Auto-cerrar después de 5 segundos
+    setTimeout(() => {
+        removeToast(toast);
+    }, 5000);
+}
 
-    // Validar tamaño de archivo (máximo 10MB)
-    validateFileSize(file) {
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        return file.size <= maxSize;
-    },
+function removeToast(toast) {
+    toast.classList.add('removing');
+    setTimeout(() => {
+        toast.remove();
+    }, 300);
+}
 
-    // Generar UUID simple
-    generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    },
+// Formatear tamaño de archivo
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
 
-    // Debounce para búsquedas
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    },
+// Formatear fecha
+function formatDate(dateString) {
+    if (!dateString) return 'Fecha desconocida';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
 
-    // Mostrar toast notification
-    showToast(message, type = 'success') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        
-        const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : '⚠';
-        
-        toast.innerHTML = `
-            <span class="icon">${icon}</span>
-            <span>${message}</span>
-            <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
-        `;
-        
-        container.appendChild(toast);
-        
-        // Mostrar toast
-        setTimeout(() => toast.classList.add('show'), 100);
-        
-        // Auto-remove después de 5 segundos
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 5000);
-    },
-
-    // Realizar petición HTTP
-    async request(url, options = {}) {
-        try {
-            const response = await fetch(url, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options.headers
-                },
-                ...options
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                return await response.json();
-            }
-            return await response.text();
-        } catch (error) {
-            console.error('Request error:', error);
-            throw error;
-        }
-    },
-
-    // Crear FormData para subida de archivos
-    createFormData(files, data = {}) {
-        const formData = new FormData();
-        
-        // Agregar archivos
-        Array.from(files).forEach(file => {
-            formData.append('files', file);
-        });
-        
-        // Agregar datos adicionales
-        Object.keys(data).forEach(key => {
-            if (data[key] !== null && data[key] !== undefined) {
-                formData.append(key, data[key]);
-            }
-        });
-        
-        return formData;
-    },
-
-    // Manejar errores de manera consistente
-    handleError(error, context = '') {
-        console.error(`Error in ${context}:`, error);
-        
-        let message = 'Ha ocurrido un error inesperado';
-        
-        if (error.message.includes('Failed to fetch')) {
-            message = 'Error de conexión. Verifica que el servidor esté ejecutándose.';
-        } else if (error.message.includes('HTTP error')) {
-            message = `Error del servidor: ${error.message}`;
-        } else if (error.message) {
-            message = error.message;
-        }
-        
-        this.showToast(message, 'error');
-        return message;
-    },
-
-    // Cargar imagen desde URL con manejo de errores
-    loadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = src;
-        });
-    },
-
-    // Obtener color dominante de una imagen (simplificado)
-    getDominantColor(imageElement) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        canvas.width = 1;
-        canvas.height = 1;
-        
-        ctx.drawImage(imageElement, 0, 0, 1, 1);
-        const data = ctx.getImageData(0, 0, 1, 1).data;
-        
-        return `rgb(${data[0]}, ${data[1]}, ${data[2]})`;
-    },
-
-    // Capitalizar primera letra
-    capitalize(str) {
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    },
-
-    // Truncar texto
-    truncate(str, length = 50) {
-        return str.length > length ? str.substring(0, length) + '...' : str;
+// Validar tipo de archivo
+function validateImageFile(file) {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+        throw new Error(`Tipo de archivo no válido: ${file.name}. Solo se permiten JPG, JPEG y PNG.`);
     }
-};
+    
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        throw new Error(`Archivo demasiado grande: ${file.name}. Tamaño máximo: 10MB.`);
+    }
+    
+    return true;
+}
 
-// Exportar para uso en otros módulos
-window.utils = utils;
-window.API_BASE_URL = API_BASE_URL;
-window.IMAGE_BASE_URL = IMAGE_BASE_URL;
+// Obtener nombre base de archivo (sin extensión)
+function getBaseName(filename) {
+    return filename.split('.').slice(0, -1).join('.');
+}
+
+// Generar ID único
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// Hacer petición HTTP
+async function fetchAPI(url, options = {}) {
+    try {
+        const response = await fetch(API_URL + url, {
+            ...options,
+            headers: {
+                ...options.headers
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+    }
+}
+
+// Subir imágenes al backend
+async function uploadImages(files) {
+    const formData = new FormData();
+    
+    // Agregar todos los archivos al FormData
+    for (const file of files) {
+        formData.append('files', file);
+    }
+    
+    try {
+        const response = await fetch(API_URL + '/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Error al subir imágenes');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Upload Error:', error);
+        throw error;
+    }
+}
+
+// Obtener todas las imágenes
+async function getAllImages() {
+    try {
+        return await fetchAPI('/images');
+    } catch (error) {
+        console.error('Error getting images:', error);
+        return [];
+    }
+}
+
+// Eliminar todas las imágenes
+async function deleteAllImages() {
+    try {
+        await fetchAPI('/images', { method: 'DELETE' });
+        return true;
+    } catch (error) {
+        console.error('Error deleting images:', error);
+        throw error;
+    }
+}
+
+// Obtener datos de la galería
+async function getGalleryData() {
+    try {
+        const data = await fetchAPI('/gallery');
+        return data.images || [];
+    } catch (error) {
+        console.error('Error getting gallery data:', error);
+        return [];
+    }
+}

@@ -1,183 +1,340 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Procesamiento de Imágenes</title>
-    <!-- CSS Modular -->
-    <link rel="stylesheet" href="assets/css/main.css" />
-    <link rel="stylesheet" href="assets/css/components.css" />
-    <link rel="stylesheet" href="assets/css/gallery.css" />
-  </head>
-  <body>
-    <div class="container">
-      <header>
-        <h1>Procesamiento de Imágenes</h1>
-        <p>Sube una o varias imágenes y compara original vs procesada.</p>
-      </header>
-
-      <section class="upload-card">
-        <div id="drop-zone" class="drop-zone">
-          <p>Arrastra y suelta imágenes aquí o selecciona archivos</p>
-          <input id="file-input" type="file" accept="image/png,image/jpeg" multiple />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Análisis de Imágenes</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <!-- Menú lateral izquierdo -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>Sistema de Análisis</h1>
+            <p class="subtitle">Procesamiento de Imágenes</p>
         </div>
-        <div class="mode-selector">
-          <label>
-            <input type="radio" name="mode" value="gallery" checked />
-            Ver galería
-          </label>
-          <label>
-            <input type="radio" name="mode" value="moments" />
-            Momentos (24)
-          </label>
-          <label>
-            <input type="radio" name="mode" value="hu" />
-            Momentos de Hu
-          </label>
-          <label>
-            <input type="radio" name="mode" value="zernike" />
-            Momentos de Zernike
-          </label>
-          <label>
-            <input type="radio" name="mode" value="sift" />
-            SIFT (solo procesada)
-          </label>
-          <label>
-            <input type="radio" name="mode" value="hog" />
-            HOG (solo procesada)
-          </label>
-          <label>
-            <input type="radio" name="mode" value="cnn" />
-            CNN/ResNet50
-          </label>
-        </div>
-        <div class="mode-config" id="moments-config">
-          <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-            <strong>⚠️ Importante:</strong>
-            <ul style="margin: 5px 0; padding-left: 20px; font-size: 13px;">
-              <li>Primero ingresa capacities (ej: 5,5)</li>
-              <li>Haz clic en <strong>"Subir"</strong> para cargar las primeras imágenes</li>
-              <li>Luego usa <strong>"Actualizar restricciones"</strong> para cambiar capacities</li>
-              <li>Finalmente usa <strong>"Agregar imágenes"</strong> para agregar más</li>
+        
+        <nav class="sidebar-nav">
+            <ul>
+                <li>
+                    <a href="#gallery" class="nav-item active" data-view="gallery">
+                        <span class="icon">🖼️</span>
+                        <span class="text">Galería</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#moments" class="nav-item disabled" data-view="moments">
+                        <span class="icon">📊</span>
+                        <span class="text">Momentos</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#hu" class="nav-item disabled" data-view="hu">
+                        <span class="icon">🔢</span>
+                        <span class="text">Momentos de Hu</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#zernike" class="nav-item disabled" data-view="zernike">
+                        <span class="icon">⭕</span>
+                        <span class="text">Momentos de Zernike</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#sift" class="nav-item disabled" data-view="sift">
+                        <span class="icon">🎯</span>
+                        <span class="text">SIFT</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#hog" class="nav-item disabled" data-view="hog">
+                        <span class="icon">📐</span>
+                        <span class="text">HOG</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#cnn" class="nav-item disabled" data-view="cnn">
+                        <span class="icon">🧠</span>
+                        <span class="text">CNN</span>
+                    </a>
+                </li>
             </ul>
-          </div>
-          <label for="moments-clusters-input">Número de clusters</label>
-          <input id="moments-clusters-input" type="number" min="1" placeholder="3" />
-          <label for="moments-capacities-input">Capacidades (ej: 10,20,5)</label>
-          <input id="moments-capacities-input" type="text" placeholder="10,20,5" />
-          <div class="momentos-actions">
-            <button id="add-images-btn-moments" class="secondary">➕ Agregar imágenes al clustering</button>
-            <button id="update-capacities-btn-moments" class="secondary">⚙️ Actualizar restricciones</button>
-            <button id="status-btn-moments" class="secondary">📊 Ver estado de clusters</button>
-          </div>
-          <div id="cluster-status-display-moments" style="display:none; margin-top: 12px; padding: 10px; background: #e8f4f8; border: 1px solid #0288d1; border-radius: 6px; font-size: 12px;">
-            <strong>📊 Estado del Clustering:</strong>
-            <div id="cluster-status-content-moments"></div>
-          </div>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <p>v2.0.0</p>
         </div>
-        <div class="mode-config" id="hu-config">
-          <label for="hu-clusters-input">Número de clusters</label>
-          <input id="hu-clusters-input" type="number" min="1" placeholder="3" />
-          <label for="hu-capacities-input">Capacidades (ej: 10,20,5)</label>
-          <input id="hu-capacities-input" type="text" placeholder="10,20,5" />
-          <div class="momentos-actions">
-            <button id="add-images-btn-hu" class="secondary">➕ Agregar imágenes al clustering</button>
-            <button id="update-capacities-btn-hu" class="secondary">⚙️ Actualizar restricciones</button>
-            <button id="status-btn-hu" class="secondary">📊 Ver estado de clusters</button>
-          </div>
-          <div id="cluster-status-display-hu" style="display:none; margin-top: 12px; padding: 10px; background: #e8f4f8; border: 1px solid #0288d1; border-radius: 6px; font-size: 12px;">
-            <strong>📊 Estado del Clustering:</strong>
-            <div id="cluster-status-content-hu"></div>
-          </div>
-        </div>
-        <div class="mode-config" id="zernike-config">
-          <label for="zernike-clusters-input">Número de clusters</label>
-          <input id="zernike-clusters-input" type="number" min="1" placeholder="3" />
-          <label for="zernike-capacities-input">Capacidades (ej: 10,20,5)</label>
-          <input id="zernike-capacities-input" type="text" placeholder="10,20,5" />
-          <div class="momentos-actions">
-            <button id="add-images-btn-zernike" class="secondary">➕ Agregar imágenes al clustering</button>
-            <button id="update-capacities-btn-zernike" class="secondary">⚙️ Actualizar restricciones</button>
-            <button id="status-btn-zernike" class="secondary">📊 Ver estado de clusters</button>
-          </div>
-          <div id="cluster-status-display-zernike" style="display:none; margin-top: 12px; padding: 10px; background: #e8f4f8; border: 1px solid #0288d1; border-radius: 6px; font-size: 12px;">
-            <strong>📊 Estado del Clustering:</strong>
-            <div id="cluster-status-content-zernike"></div>
-          </div>
-        </div>
-        <div class="mode-config" id="sift-config">
-          <label for="sift-clusters-input">Número de clusters</label>
-          <input id="sift-clusters-input" type="number" min="1" placeholder="3" />
-          <label for="sift-capacities-input">Capacidades (ej: 10,20,5)</label>
-          <input id="sift-capacities-input" type="text" placeholder="10,20,5" />
-          <div class="momentos-actions">
-            <button id="add-images-btn-sift" class="secondary">➕ Agregar imágenes al clustering</button>
-            <button id="update-capacities-btn-sift" class="secondary">⚙️ Actualizar restricciones</button>
-            <button id="status-btn-sift" class="secondary">📊 Ver estado de clusters</button>
-          </div>
-          <div id="cluster-status-display-sift" style="display:none; margin-top: 12px; padding: 10px; background: #e8f4f8; border: 1px solid #0288d1; border-radius: 6px; font-size: 12px;">
-            <strong>📊 Estado del Clustering:</strong>
-            <div id="cluster-status-content-sift"></div>
-          </div>
-        </div>
-        <div class="mode-config" id="hog-config">
-          <label for="hog-clusters-input">Número de clusters</label>
-          <input id="hog-clusters-input" type="number" min="1" placeholder="3" />
-          <label for="hog-capacities-input">Capacidades (ej: 10,20,5)</label>
-          <input id="hog-capacities-input" type="text" placeholder="10,20,5" />
-          <div class="momentos-actions">
-            <button id="add-images-btn-hog" class="secondary">➕ Agregar imágenes al clustering</button>
-            <button id="update-capacities-btn-hog" class="secondary">⚙️ Actualizar restricciones</button>
-            <button id="status-btn-hog" class="secondary">📊 Ver estado de clusters</button>
-          </div>
-          <div id="cluster-status-display-hog" style="display:none; margin-top: 12px; padding: 10px; background: #e8f4f8; border: 1px solid #0288d1; border-radius: 6px; font-size: 12px;">
-            <strong>📊 Estado del Clustering:</strong>
-            <div id="cluster-status-content-hog"></div>
-          </div>
-        </div>
-        <div class="mode-config" id="cnn-config">
-          <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-            <strong>🤖 CNN/ResNet50:</strong>
-            <ul style="margin: 5px 0; padding-left: 20px; font-size: 13px;">
-              <li>Extrae características usando ResNet50 pre-entrenada</li>
-              <li>Vector de 2048 dimensiones por imagen</li>
-              <li>Ideal para imágenes complejas y reconocimiento de objetos</li>
-              <li>Funciona igual que otros métodos: capacidades → subir → agregar</li>
-            </ul>
-          </div>
-          <label for="cnn-clusters-input">Número de clusters</label>
-          <input id="cnn-clusters-input" type="number" min="1" placeholder="3" />
-          <label for="cnn-capacities-input">Capacidades (ej: 10,20,5)</label>
-          <input id="cnn-capacities-input" type="text" placeholder="10,20,5" />
-          <div class="momentos-actions">
-            <button id="add-images-btn-cnn" class="secondary">➕ Agregar imágenes al clustering</button>
-            <button id="update-capacities-btn-cnn" class="secondary">⚙️ Actualizar restricciones</button>
-            <button id="status-btn-cnn" class="secondary">📊 Ver estado de clusters</button>
-          </div>
-          <div id="cluster-status-display-cnn" style="display:none; margin-top: 12px; padding: 10px; background: #e8f4f8; border: 1px solid #0288d1; border-radius: 6px; font-size: 12px;">
-            <strong>📊 Estado del Clustering:</strong>
-            <div id="cluster-status-content-cnn"></div>
-          </div>
-        </div>
-        <div class="actions">
-          <button id="upload-btn">Subir</button>
-          <button id="clear-btn" class="secondary">Borrar todo</button>
-          <span id="status" class="status">Listo</span>
-        </div>
-      </section>
+    </aside>
 
-      <section>
-        <h2>Galería</h2>
-        <div id="gallery" class="gallery"></div>
-      </section>
+    <!-- Panel derecho (contenido dinámico) -->
+    <main class="main-content">
+        <!-- Vista de Galería -->
+        <div id="gallery-view" class="view active">
+            <header class="view-header">
+                <h2>Galería de Imágenes</h2>
+            </header>
 
-      <section id="results-section" style="display: none;">
-        <h2>Resultados - Momentos</h2>
-        <div id="results" class="results"></div>
-      </section>
-    </div>
+            <!-- Área de selección de imágenes -->
+            <section class="upload-section">
+                <div id="drop-zone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <span class="drop-icon">📁</span>
+                        <h3>Arrastra y suelta imágenes aquí</h3>
+                        <p>o</p>
+                        <label for="file-input" class="btn btn-primary">
+                            Seleccionar archivos
+                        </label>
+                        <input 
+                            type="file" 
+                            id="file-input" 
+                            accept="image/*" 
+                            multiple 
+                            style="display: none;"
+                        >
+                        <p class="hint">Formatos soportados: JPG, PNG, JPEG</p>
+                    </div>
+                </div>
+            </section>
 
-    <!-- JavaScript Modular -->
-    <script type="module" src="assets/js/main.js"></script>
-  </body>
+            <!-- Preview de imágenes seleccionadas -->
+            <section id="preview-section" class="preview-section" style="display: none;">
+                <div class="section-header">
+                    <h3>Imágenes seleccionadas (<span id="preview-count">0</span>)</h3>
+                    <button id="upload-btn" class="btn btn-primary btn-large">
+                        ⬆️ Cargar Imágenes
+                    </button>
+                </div>
+                <div id="preview-container" class="preview-grid">
+                    <!-- Preview de imágenes antes de subir -->
+                </div>
+            </section>
+
+            <!-- Indicador de carga -->
+            <div id="upload-progress" class="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <p id="progress-text">Subiendo imágenes...</p>
+            </div>
+
+            <!-- Galería de imágenes cargadas -->
+            <section id="results-section" class="results-section" style="display: none;">
+                <div class="section-header">
+                    <h3>Imágenes procesadas (<span id="results-count">0</span>)</h3>
+                    <button id="clear-all-btn" class="btn btn-danger" title="Elimina todas las imágenes permanentemente">
+                        🗑️ Borrar Todas las Imágenes
+                    </button>
+                </div>
+                <div id="results-container" class="results-grid">
+                    <!-- Imágenes procesadas con 3 versiones -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Vista de Momentos -->
+        <div id="moments-view" class="view">
+            <header class="view-header">
+                <h2>Módulo de Momentos - Clustering</h2>
+                <p class="view-description">Agrupa imágenes binarias en clusters con capacidades configurables</p>
+            </header>
+
+            <!-- Contador de imágenes disponibles -->
+            <section class="gallery-status-section">
+                <div class="status-card">
+                    <div class="status-icon">📊</div>
+                    <div class="status-info">
+                        <h3>Imágenes Disponibles en Galería</h3>
+                        <div class="status-count">
+                            <span id="moments-total-images" class="count-number">0</span>
+                            <span class="count-label">imágenes binarias listas para procesar</span>
+                        </div>
+                        <button id="refresh-gallery-count" class="btn btn-secondary btn-sm">
+                            🔄 Actualizar
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel de configuración -->
+            <section class="config-section">
+                <div class="config-card">
+                    <h3>⚙️ Configuración de Clustering</h3>
+                    
+                    <div class="form-group">
+                        <label for="num-clusters">Número de Clusters:</label>
+                        <input 
+                            type="number" 
+                            id="num-clusters" 
+                            min="1" 
+                            max="10" 
+                            value="3" 
+                            placeholder="Ej: 3"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cluster-capacities">Capacidades por Cluster:</label>
+                        <input 
+                            type="text" 
+                            id="cluster-capacities" 
+                            placeholder="Ej: 10,20,5"
+                        >
+                        <small class="hint">Separar valores con comas. Debe coincidir con el número de clusters.</small>
+                    </div>
+
+                    <div class="config-actions">
+                        <button id="init-clustering-btn" class="btn btn-primary">
+                            💾 Guardar Configuración
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel de acciones -->
+            <section class="actions-section">
+                <div class="actions-grid actions-grid-6">
+                    <button id="init-clustering-btn-action" class="action-card disabled">
+                        <span class="action-icon">🚀</span>
+                        <span class="action-title">Inicializar Clustering</span>
+                        <span class="action-desc">Procesar todas las imágenes</span>
+                    </button>
+
+                    <button id="add-images-btn" class="action-card disabled">
+                        <span class="action-icon">➕</span>
+                        <span class="action-title">Agregar Imágenes</span>
+                        <span class="action-desc">Subir múltiples imágenes</span>
+                    </button>
+
+                    <button id="update-restrictions-btn" class="action-card disabled">
+                        <span class="action-icon">🔄</span>
+                        <span class="action-title">Actualizar Restricciones</span>
+                        <span class="action-desc">Cambiar capacidades</span>
+                    </button>
+
+                    <button id="view-cluster-status-btn" class="action-card disabled">
+                        <span class="action-icon">📊</span>
+                        <span class="action-title">Ver Estado de Clusters</span>
+                        <span class="action-desc">Ver métricas y capacidades</span>
+                    </button>
+
+                    <button id="clear-clustering-btn" class="action-card disabled">
+                        <span class="action-icon">🗑️</span>
+                        <span class="action-title">Borrar Todo</span>
+                        <span class="action-desc">Reiniciar módulo</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Información de galería -->
+            <section id="gallery-info-section" class="config-section" style="display: none;">
+                <div class="info-card">
+                    <h4>📊 Imágenes Disponibles</h4>
+                    <p>Total en galería: <strong id="total-gallery-images">0</strong> imágenes</p>
+                </div>
+            </section>
+
+            <!-- Estado de clusters -->
+            <section id="cluster-status-section" class="cluster-status-section" style="display: none;">
+                <div class="section-header">
+                    <h3>📊 Métricas de Evaluación y Estado de Clusters</h3>
+                </div>
+                <div id="cluster-status-container" class="cluster-status-grid">
+                    <!-- Estado de cada cluster y métricas -->
+                </div>
+            </section>
+
+            <!-- Resultados del clustering -->
+            <section id="clustering-results-section" class="clustering-results-section" style="display: none;">
+                <div class="section-header">
+                    <h3>🎯 Clusters Resultantes</h3>
+                </div>
+                <div id="clustering-results-container" class="clustering-results-grid">
+                    <!-- Clusters con sus imágenes -->
+                </div>
+            </section>
+
+            <!-- Modal para agregar imágenes múltiples -->
+            <div id="add-images-modal" class="modal">
+                <div class="modal-content modal-large">
+                    <div class="modal-header">
+                        <h3>➕ Agregar Nuevas Imágenes al Clustering</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="multi-drop-zone" class="drop-zone drop-zone-enhanced">
+                            <div class="drop-zone-content">
+                                <span class="drop-icon">📤</span>
+                                <h4>Arrastra y suelta imágenes aquí</h4>
+                                <p class="drop-hint">o</p>
+                                <label for="multi-file-input" class="btn btn-primary btn-large">
+                                    📁 Seleccionar Archivos
+                                </label>
+                                <input 
+                                    type="file" 
+                                    id="multi-file-input" 
+                                    accept="image/*"
+                                    multiple
+                                    style="display: none;"
+                                >
+                                <p class="format-hint">Formatos: JPG, PNG, JPEG (Múltiples archivos permitidos)</p>
+                            </div>
+                        </div>
+                        <div id="multi-preview" class="modal-preview-grid" style="display: none;">
+                            <!-- Preview de múltiples imágenes -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="multi-cancel-btn" class="btn btn-secondary">Cancelar</button>
+                        <button id="multi-upload-btn" class="btn btn-primary" disabled>⬆️ Subir <span id="upload-count">0</span> Imágenes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para asignar imagen a cluster -->
+            <div id="assign-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Asignar Imagen a Cluster Específico</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="assign-file-input">Seleccionar Imagen:</label>
+                            <input 
+                                type="file" 
+                                id="assign-file-input" 
+                                accept="image/*"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="target-cluster">Cluster Destino:</label>
+                            <select id="target-cluster">
+                                <!-- Opciones dinámicas -->
+                            </select>
+                        </div>
+                        <div id="assign-preview" class="assign-preview" style="display: none;">
+                            <!-- Preview de imagen -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="assign-cancel-btn" class="btn btn-secondary">Cancelar</button>
+                        <button id="assign-confirm-btn" class="btn btn-primary" disabled>Asignar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast de notificaciones -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/utils.js?v=10"></script>
+    <script src="js/upload.js?v=10"></script>
+    <script src="js/gallery.js?v=10"></script>
+    <script src="js/moments.js?v=10"></script>
+    <script src="js/app.js?v=10"></script>
+</body>
 </html>

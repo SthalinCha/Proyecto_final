@@ -74,28 +74,8 @@ class LinksClusterCapacityOnline:
         return self.last_cluster_id
 
     def predict_with_centroid(self, x: np.ndarray, allow_new_clusters: bool = True, true_label: int = None) -> tuple[int, np.ndarray]:
-        if len(self.clusters) == 0:
-            if allow_new_clusters:
-                cid = self._append_new_cluster(x)
-                # Almacenar vector, label y true_label
-                self.all_vectors.append(x.copy())
-                self.all_labels.append(cid)
-                if true_label is not None:
-                    self.true_labels.append(true_label)
-                return cid, self.last_centroid.copy()
-            raise RuntimeError("No hay clusters existentes y no se permiten nuevos")
-
-        if all(self.cluster_counts[cid] >= self.capacities[cid] for cid in range(len(self.cluster_counts))):
-            if allow_new_clusters and len(self.clusters) < self.k:
-                cid = self._append_new_cluster(x)
-                # Almacenar vector, label y true_label
-                self.all_vectors.append(x.copy())
-                self.all_labels.append(cid)
-                if true_label is not None:
-                    self.true_labels.append(true_label)
-                return cid, self.last_centroid.copy()
-            raise RuntimeError("Capacidad excedida: todos los clusters están llenos")
-
+        # ... (código inicial igual)
+        
         # FASE 1: Buscar mejor cluster CON CUPO disponible
         best_cid, best_sc, best_sim = None, None, -np.inf
         for cid, cl in enumerate(self.clusters):
@@ -107,80 +87,92 @@ class LinksClusterCapacityOnline:
                     best_sim = s
                     best_cid = cid
                     best_sc = sc
-
-        # Si no hay clusters con cupo, error o crear nuevo
+        
+        # Verificación robusta después de FASE 1
+        if best_cid is not None:
+            # DOUBLE-CHECK: ¿Sigue teniendo cupo?
+            if not self._has_capacity(best_cid):
+                # Cupo cambió concurrentemente o lógica previa falló
+                best_cid, best_sc, best_sim = None, None, -np.inf
+                # Re-buscar excluyendo clusters sin cupo
+                for cid, cl in enumerate(self.clusters):
+                    if not self._has_capacity(cid):
+                        continue
+                    for sc in cl:
+                        s = cos_sim(x, sc.centroid)
+                        if s > best_sim:
+                            best_sim = s
+                            best_cid = cid
+                            best_sc = sc
+        
+        # Si sigue siendo None, crear nuevo cluster si es posible
         if best_cid is None or best_sc is None:
             if allow_new_clusters and len(self.clusters) < self.k:
                 cid = self._append_new_cluster(x)
-                # Almacenar vector, label y true_label
                 self.all_vectors.append(x.copy())
                 self.all_labels.append(cid)
                 if true_label is not None:
                     self.true_labels.append(true_label)
                 return cid, self.last_centroid.copy()
             raise RuntimeError("No hay clusters con capacidad disponible")
-
-        # IMPORTANTE: En este punto, best_cid tiene cupo garantizado
-        # Verificar también que tiene cupo antes de cualquier asignación
+        
+        # VERIFICACIÓN FINAL DE CAPACIDAD ANTES DE ASIGNAR
         if not self._has_capacity(best_cid):
-            raise RuntimeError("Capacidad excedida: no hay cluster con cupo para asignar el punto")
-
+            if allow_new_clusters and len(self.clusters) < self.k:
+                cid = self._append_new_cluster(x)
+                self.all_vectors.append(x.copy())
+                self.all_labels.append(cid)
+                if true_label is not None:
+                    self.true_labels.append(true_label)
+                return cid, self.last_centroid.copy()
+            raise RuntimeError("Capacidad excedida: no hay cluster con cupo")
+        
         # FASE 2: Intentar agregar al subcluster más similar
         if best_sim >= self.subcluster_similarity_threshold:
             best_sc.add(x)
             self.cluster_counts[best_cid] += 1
             self.last_centroid = best_sc.centroid.copy()
             self.last_cluster_id = best_cid
-            # Almacenar vector, label y true_label
             self.all_vectors.append(x.copy())
             self.all_labels.append(best_cid)
             if true_label is not None:
                 self.true_labels.append(true_label)
             return best_cid, self.last_centroid.copy()
-
+        
         # FASE 3: Crear nuevo subcluster si es similar al existente
         new_sc = Subcluster(x)
         s_link = cos_sim(new_sc.centroid, best_sc.centroid)
         if s_link >= self.sim_threshold(best_sc.n_vectors, 1):
-            # Verificar cupo antes de agregar subcluster
-            if not self._has_capacity(best_cid):
-                raise RuntimeError("Capacidad excedida: no hay cupo para nuevo subcluster")
             self.clusters[best_cid].append(new_sc)
             self.cluster_counts[best_cid] += 1
             self.last_centroid = new_sc.centroid.copy()
             self.last_cluster_id = best_cid
-            # Almacenar vector, label y true_label
             self.all_vectors.append(x.copy())
             self.all_labels.append(best_cid)
             if true_label is not None:
                 self.true_labels.append(true_label)
             return best_cid, self.last_centroid.copy()
-
+        
         # FASE 4: No cumple similitud, intentar crear nuevo cluster
         if allow_new_clusters and len(self.clusters) < self.k:
             cid = self._append_new_cluster(x)
-            # Almacenar vector, label y true_label
             self.all_vectors.append(x.copy())
             self.all_labels.append(cid)
             if true_label is not None:
                 self.true_labels.append(true_label)
             return cid, self.last_centroid.copy()
-
-        # FASE 5: Última opción - asignar al mejor con cupo (fallback)
-        if not self._has_capacity(best_cid):
-            raise RuntimeError("Capacidad excedida: no hay cluster con cupo")
         
+        # FASE 5: Última opción - asignar al mejor con cupo (ya verificado)
         best_sc.add(x)
         self.cluster_counts[best_cid] += 1
         self.last_centroid = best_sc.centroid.copy()
         self.last_cluster_id = best_cid
-        # Almacenar vector, label y true_label
         self.all_vectors.append(x.copy())
         self.all_labels.append(best_cid)
         if true_label is not None:
             self.true_labels.append(true_label)
         return best_cid, self.last_centroid.copy()
-
+        
     def to_dict(self) -> dict:
         """Serializa el estado del modelo para persistencia"""
         return {

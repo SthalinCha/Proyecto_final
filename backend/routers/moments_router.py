@@ -141,6 +141,15 @@ async def update_capacities(capacities: str = Form(...)):
 @router.get("/cluster-status")
 def get_cluster_status():
     """
-    Retorna el estado actual del clustering de momentos regulares
+    Retorna el estado actual del clustering de momentos regulares con métricas
     """
-    return clustering_service.get_model_status("moments")
+    status = clustering_service.get_model_status("moments")
+    
+    # Agregar métricas de evaluación
+    try:
+        metrics = clustering_service.get_metrics("moments")
+        status["metrics"] = metrics
+    except:
+        status["metrics"] = None
+    
+    return status

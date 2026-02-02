@@ -11,7 +11,11 @@ from routers import moments_router, hu_router, zernike_router, sift_router, hog_
 # Importar servicios
 from services.file_service import file_service
 from services.image_service import image_service
+from services.clustering_service import clustering_service
 from utils.helpers import get_data_paths, validate_file_type, validate_file_size
+
+# Importar modelos
+from models.clustering_models import clustering_models
 
 # Configuración de la aplicación
 app = FastAPI(title="Sistema de Análisis de Imágenes", version="2.0.0")
@@ -44,12 +48,22 @@ def list_images():
     """Lista todas las imágenes almacenadas"""
     return file_service.load_index()
 
+@app.get("/gallery")
+def get_gallery():
+    """Obtiene todas las imágenes de la galería con URLs completas"""
+    items = file_service.load_index()
+    return {"items": items, "total": len(items)}
 
 @app.delete("/images")
 def delete_images():
     """Elimina todas las imágenes almacenadas"""
-    file_service.delete_all_images()
-    return {"status": "ok"}
+    try:
+        file_service.delete_all_images()
+        # Limpiar los modelos de clustering
+        clustering_models.reset_model("moments")
+        return {"status": "ok", "message": "Todas las imágenes han sido eliminadas"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al eliminar imágenes: {str(e)}")
 
 
 @app.post("/upload")
@@ -117,22 +131,6 @@ def get_binarized(filename: str):
 
 # ===== ENDPOINTS ADICIONALES PARA FRONTEND =====
 
-@app.get("/image/{filename}")
-def get_image(filename: str):
-    """Obtiene una imagen por nombre (original por defecto)"""
-    # Primero intentar obtener la original
-    original_path = file_service.get_file_path("originals", filename)
-    if os.path.exists(original_path):
-        return FileResponse(original_path)
-    
-    # Si no existe, buscar en procesadas
-    processed_path = file_service.get_file_path("processed", filename)
-    if os.path.exists(processed_path):
-        return FileResponse(processed_path)
-        
-    raise HTTPException(status_code=404, detail="Imagen no encontrada")
-
-
 @app.get("/image/{base_name}_grayscale.jpg")
 def get_image_grayscale(base_name: str):
     """Obtiene la versión en escala de grises de una imagen"""
@@ -161,6 +159,22 @@ def get_image_binary(base_name: str):
         return FileResponse(binary_path)
     
     raise HTTPException(status_code=404, detail="Imagen binaria no encontrada")
+
+
+@app.get("/image/{filename}")
+def get_image(filename: str):
+    """Obtiene una imagen por nombre (original por defecto)"""
+    # Primero intentar obtener la original
+    original_path = file_service.get_file_path("originals", filename)
+    if os.path.exists(original_path):
+        return FileResponse(original_path)
+    
+    # Si no existe, buscar en procesadas
+    processed_path = file_service.get_file_path("processed", filename)
+    if os.path.exists(processed_path):
+        return FileResponse(processed_path)
+        
+    raise HTTPException(status_code=404, detail="Imagen no encontrada")
 
 
 @app.get("/gallery")
@@ -197,9 +211,6 @@ def get_gallery_data():
 @app.post("/analyze")
 async def analyze_legacy(files: List[UploadFile] = File(...), capacities: str = Form(None), clusters: int = Form(None), reset: bool = Form(False)):
     """Endpoint de compatibilidad - usa moments por defecto"""
-    from services.clustering_service import clustering_service
-    from models.clustering_models import clustering_models
-    
     # Usar la lógica directamente de los servicios
     try:
         if capacities or clusters or reset:
@@ -240,9 +251,6 @@ async def analyze_legacy(files: List[UploadFile] = File(...), capacities: str = 
 @app.post("/add-images")
 async def add_images_legacy(files: List[UploadFile] = File(...)):
     """Endpoint de compatibilidad - usa moments por defecto"""
-    from services.clustering_service import clustering_service
-    from models.clustering_models import clustering_models
-    
     try:
         clustering_service.ensure_model_exists("moments", "No hay modelo de clustering activo. Usa /analyze primero")
         
@@ -271,8 +279,6 @@ async def add_images_legacy(files: List[UploadFile] = File(...)):
 @app.post("/update-capacities")
 async def update_capacities_legacy(capacities: str = Form(...)):
     """Endpoint de compatibilidad - usa moments por defecto"""
-    from services.clustering_service import clustering_service
-    
     try:
         return clustering_service.update_model_capacities("moments", capacities)
     except Exception as e:
@@ -282,8 +288,26 @@ async def update_capacities_legacy(capacities: str = Form(...)):
 @app.get("/cluster-status")
 def get_cluster_status_legacy():
     """Endpoint de compatibilidad - usa moments por defecto"""
-    from services.clustering_service import clustering_service
     return clustering_service.get_model_status("moments")
+
+
+@app.get("/debug/files")
+def debug_files():
+    """Debug: Lista todos los archivos guardados"""
+    import os
+    debug_info = {
+        "data_paths": paths,
+        "files": {}
+    }
+    
+    for folder_name, folder_path in paths.items():
+        if os.path.exists(folder_path):
+            files = os.listdir(folder_path)
+            debug_info["files"][folder_name] = files
+        else:
+            debug_info["files"][folder_name] = "Carpeta no existe"
+    
+    return debug_info
 
 
 if __name__ == "__main__":

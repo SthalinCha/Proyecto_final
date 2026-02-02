@@ -1,1 +1,55 @@
-// ===== APP MODULE - Coordinador principal =====\nconst app = {\n    // Estado global de la aplicación\n    state: {\n        initialized: false,\n        currentPage: 'gallery',\n        theme: 'light'\n    },\n\n    // Inicializar aplicación\n    async init() {\n        if (this.state.initialized) return;\n        \n        console.log('🚀 Iniciando aplicación de análisis de imágenes...');\n        \n        try {\n            // Verificar conectividad con el backend\n            await this.checkBackendConnectivity();\n            \n            // Inicializar módulos\n            this.initializeModules();\n            \n            // Configurar eventos globales\n            this.setupGlobalEvents();\n            \n            // Marcar como inicializada\n            this.state.initialized = true;\n            \n            console.log('✅ Aplicación inicializada correctamente');\n            utils.showToast('Aplicación cargada exitosamente', 'success');\n            \n        } catch (error) {\n            console.error('❌ Error al inicializar aplicación:', error);\n            this.handleInitializationError(error);\n        }\n    },\n\n    // Verificar conectividad con backend\n    async checkBackendConnectivity() {\n        try {\n            const response = await fetch(`${API_BASE_URL}/../images`, {\n                method: 'GET',\n                timeout: 5000\n            });\n            \n            if (!response.ok && response.status !== 404) {\n                throw new Error(`Backend no disponible: ${response.status}`);\n            }\n            \n            console.log('✅ Conectividad con backend verificada');\n            \n        } catch (error) {\n            if (error.message.includes('Failed to fetch')) {\n                console.warn('⚠️ Backend no disponible - modo offline');\n                utils.showToast('Backend no disponible. La aplicación funcionará en modo limitado.', 'warning');\n            } else {\n                throw error;\n            }\n        }\n    },\n\n    // Inicializar módulos\n    initializeModules() {\n        console.log('📦 Inicializando módulos...');\n        \n        // Los módulos ya se inicializan automáticamente via sus propios scripts\n        // Aquí podemos coordinar cualquier inicialización adicional\n        \n        // Verificar que los módulos estén disponibles\n        const modules = ['uploadModule', 'galleryModule', 'modalModule'];\n        modules.forEach(moduleName => {\n            if (window[moduleName]) {\n                console.log(`✅ ${moduleName} cargado`);\n            } else {\n                console.warn(`⚠️ ${moduleName} no disponible`);\n            }\n        });\n    },\n\n    // Configurar eventos globales\n    setupGlobalEvents() {\n        // Manejo de errores globales\n        window.addEventListener('error', (e) => {\n            console.error('Error global:', e.error);\n            this.handleGlobalError(e.error);\n        });\n\n        // Manejo de promesas rechazadas\n        window.addEventListener('unhandledrejection', (e) => {\n            console.error('Promesa rechazada:', e.reason);\n            this.handleGlobalError(e.reason);\n            e.preventDefault();\n        });\n\n        // Manejo de cambios de conectividad\n        window.addEventListener('online', () => {\n            console.log('🌐 Conectividad restaurada');\n            utils.showToast('Conectividad restaurada', 'success');\n            this.onConnectivityRestored();\n        });\n\n        window.addEventListener('offline', () => {\n            console.log('🔌 Conectividad perdida');\n            utils.showToast('Sin conexión a internet', 'warning');\n        });\n\n        // Shortcuts de teclado globales\n        document.addEventListener('keydown', (e) => {\n            this.handleKeyboardShortcuts(e);\n        });\n\n        // Prevenir comportamiento por defecto en drag & drop global\n        document.addEventListener('dragover', (e) => e.preventDefault());\n        document.addEventListener('drop', (e) => e.preventDefault());\n    },\n\n    // Manejar shortcuts de teclado\n    handleKeyboardShortcuts(e) {\n        // Ctrl/Cmd + U: Abrir modal de subida\n        if ((e.ctrlKey || e.metaKey) && e.key === 'u') {\n            e.preventDefault();\n            if (window.uploadModule && !document.querySelector('.modal.show')) {\n                document.getElementById('upload-btn').click();\n            }\n        }\n        \n        // Ctrl/Cmd + R: Refrescar galería\n        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {\n            e.preventDefault();\n            if (window.galleryModule) {\n                window.galleryModule.refresh();\n                utils.showToast('Galería actualizada', 'success');\n            }\n        }\n        \n        // F5: Refrescar galería (alternativa)\n        if (e.key === 'F5') {\n            e.preventDefault();\n            if (window.galleryModule) {\n                window.galleryModule.refresh();\n            }\n        }\n    },\n\n    // Manejar error de inicialización\n    handleInitializationError(error) {\n        const errorMessage = utils.handleError(error, 'inicialización');\n        \n        // Mostrar estado de error en la UI\n        document.body.innerHTML = `\n            <div style=\"\n                display: flex;\n                flex-direction: column;\n                align-items: center;\n                justify-content: center;\n                height: 100vh;\n                text-align: center;\n                padding: 2rem;\n                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;\n            \">\n                <div style=\"font-size: 4rem; margin-bottom: 1rem;\">⚠️</div>\n                <h1 style=\"color: #e74c3c; margin-bottom: 1rem;\">Error de Inicialización</h1>\n                <p style=\"color: #666; margin-bottom: 2rem; max-width: 500px;\">\n                    No se pudo inicializar la aplicación correctamente. \n                    Por favor, verifica que el servidor backend esté ejecutándose.\n                </p>\n                <button onclick=\"window.location.reload()\" style=\"\n                    background: #3498db;\n                    color: white;\n                    border: none;\n                    padding: 12px 24px;\n                    border-radius: 6px;\n                    font-size: 16px;\n                    cursor: pointer;\n                \">Reintentar</button>\n                <details style=\"margin-top: 2rem; text-align: left;\">\n                    <summary style=\"cursor: pointer; color: #666;\">Detalles del error</summary>\n                    <pre style=\"background: #f5f5f5; padding: 1rem; border-radius: 4px; margin-top: 1rem; overflow: auto;\">${error.message}</pre>\n                </details>\n            </div>\n        `;\n    },\n\n    // Manejar errores globales\n    handleGlobalError(error) {\n        // Solo mostrar errores críticos al usuario\n        if (error && error.message && !error.message.includes('Script error')) {\n            console.error('Error global:', error);\n            \n            // No mostrar toast para errores de conectividad conocidos\n            if (!error.message.includes('Failed to fetch') && \n                !error.message.includes('NetworkError')) {\n                utils.showToast('Error inesperado en la aplicación', 'error');\n            }\n        }\n    },\n\n    // Cuando se restaura la conectividad\n    onConnectivityRestored() {\n        if (window.galleryModule) {\n            window.galleryModule.refresh();\n        }\n    },\n\n    // Obtener información de la aplicación\n    getAppInfo() {\n        return {\n            name: 'Sistema de Análisis de Imágenes',\n            version: '1.0.0',\n            initialized: this.state.initialized,\n            modules: {\n                upload: !!window.uploadModule,\n                gallery: !!window.galleryModule,\n                modal: !!window.modalModule,\n                utils: !!window.utils\n            },\n            backend: {\n                baseUrl: API_BASE_URL,\n                imageUrl: IMAGE_BASE_URL\n            },\n            browser: {\n                userAgent: navigator.userAgent,\n                language: navigator.language,\n                online: navigator.onLine\n            }\n        };\n    },\n\n    // Debug: Obtener estado completo\n    debug() {\n        return {\n            app: this.getAppInfo(),\n            state: this.state,\n            modules: {\n                upload: window.uploadModule?.state || null,\n                gallery: window.galleryModule?.state || null,\n                modal: window.modalModule?.state || null\n            }\n        };\n    }\n};\n\n// Auto-inicializar cuando el DOM esté listo\nif (document.readyState === 'loading') {\n    document.addEventListener('DOMContentLoaded', () => {\n        // Pequeño delay para asegurar que todos los módulos estén cargados\n        setTimeout(() => app.init(), 100);\n    });\n} else {\n    // DOM ya está listo\n    setTimeout(() => app.init(), 100);\n}\n\n// Exportar para debugging\nwindow.app = app;\n\n// Mensaje de consola para desarrolladores\nconsole.log('%c🖼️ Sistema de Análisis de Imágenes', 'font-size: 16px; font-weight: bold; color: #3498db;');\nconsole.log('%cPara debugging, usa: app.debug()', 'font-size: 12px; color: #666;');
+// Main application logic
+
+class App {
+    constructor() {
+        this.currentView = 'gallery';
+        this.initializeNavigation();
+    }
+    
+    initializeNavigation() {
+        // Habilitar Momentos primero
+        const momentsNav = document.querySelector('.nav-item[data-view="moments"]');
+        if (momentsNav) {
+            momentsNav.classList.remove('disabled');
+        }
+        
+        // Navegación del sidebar - Usar delegación de eventos
+        document.querySelector('.sidebar-nav')?.addEventListener('click', (e) => {
+            const navItem = e.target.closest('.nav-item');
+            
+            if (!navItem || navItem.classList.contains('disabled')) {
+                return;
+            }
+            
+            e.preventDefault();
+            
+            // Actualizar estado activo en el menú
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            navItem.classList.add('active');
+            
+            const viewName = navItem.dataset.view;
+            this.switchView(viewName);
+        });
+    }
+    
+    switchView(viewName) {
+        // Ocultar todas las vistas
+        const views = document.querySelectorAll('.view');
+        views.forEach(view => view.classList.remove('active'));
+        
+        // Mostrar vista seleccionada
+        const targetView = document.getElementById(`${viewName}-view`);
+        if (targetView) {
+            targetView.classList.add('active');
+            this.currentView = viewName;
+            console.log('Vista activa:', viewName);
+        }
+    }
+}
+
+// Inicializar aplicación
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new App();
+    console.log('Sistema de Análisis de Imágenes v2.0.0 iniciado');
+});
